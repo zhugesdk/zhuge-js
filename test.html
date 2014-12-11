@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+<head>
+    <meta charset="utf-8">
+    <title>Zhuge Test</title>
+    <script type="text/javascript">
+    window.zhuge = window.zhuge || [];
+
+    window.zhuge.methods = ['_init', 'debug', 'identify', 'track', 'trackLink', 'trackForm', 'page'];
+
+    window.zhuge.factory = function(method) {
+        return function() {
+            var args = Array.prototype.slice.call(arguments);
+            args.unshift(method);
+            window.zhuge.push(args);
+            return window.zhuge;
+        };
+    };
+
+
+    for (var i = 0; i < window.zhuge.methods.length; i++) {
+        var key = window.zhuge.methods[i];
+        window.zhuge[key] = window.zhuge.factory(key);
+    }
+
+    window.zhuge.load = function(key, config) {
+        if (document.getElementById('zhuge-js')) return;
+
+        var script = document.createElement('script');
+        script.type = 'text/javascript';
+        script.id = 'zhuge-js';
+        script.async = true;
+        script.src = 'zhuge.js';
+
+        var first = document.getElementsByTagName('script')[0];
+        first.parentNode.insertBefore(script, first);
+
+        window.zhuge._init(key, config);
+    };
+
+    var config = {
+        api_host: "http://api.zhuge.io:12000?1=1",
+        ping_host: "http://api.zhuge.io:12000/ping",
+        debug: true,
+        ping: true
+    }
+    window.zhuge.load('c0db95c7d66949ee97a70a6c360756a2', config);
+
+    </script>
+
+</head>
+
+<body>
+</body>
+
+</html>

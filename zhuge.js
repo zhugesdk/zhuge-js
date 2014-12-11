@@ -1,12 +1,12 @@
 /*
- * Zhuge JS Library v1.0
+ * Zhuge JS Library v1.1
  *
  * Copyright 2014, 37degree, Inc. All Rights Reserved
  * http://37degree.com/
  *
  * Includes portions of Underscore.js
- * http://http://underscorejs.org/
- * (c) 2011  2009-2014 Jeremy Ashkenas, DocumentCloud Inc.
+ * http://underscorejs.org/
+ * (c) 2009-2014 Jeremy Ashkenas, DocumentCloud Inc.
  * Released under the MIT License.
  */
 (function() {
@@ -21,18 +21,25 @@
         userAgent = navigator.userAgent;
 
     var _ = {},
-        SNIPPET_VERSION = '1.0',
+        SNIPPET_VERSION = '1.1',
         HTTP_PROTOCOL = ("https:" == document.location.protocol) ? "http://" : "http://",
-        API_HOST = HTTP_PROTOCOL + 'apipool.37degree.com/web_event/?method=web_event_srv.upload',
         USE_XHR = window.XMLHttpRequest && 'withCredentials' in new XMLHttpRequest(),
         DEBUG = false,
-        TRACK_LINK_TIMEOUT = 300,
-        COOKIE_EXPIRE_DAYS = 365,
-        COOKIE_CROSS_SUBDOMAIN = true,
-        COOKIE_SECURE = false,
-        INFO_UPLOAD_INTERVAL_DAYS = 7,
-        SESSION_INTERVAL_MINS = 30;
-
+        DEFAULT_CONFIG = {
+            api_host: HTTP_PROTOCOL + 'apipool.37degree.com/web_event/?method=web_event_srv.upload',
+            ping_host: HTTP_PROTOCOL + 'api.zhuge.io/ping',
+            debug: false,
+            ping : false,
+            ping_interval: 12000,
+            idle_timeout: 300000,
+            idle_threshold: 10000,
+            track_link_timeout: 300,
+            cookie_expire_days: 365,
+            cookie_cross_subdomain: true,
+            cookie_secure: false,
+            info_upload_interval_days: 7,
+            session_interval_mins: 30
+        };
 
     // UNDERSCORE
     // Embed part of the Underscore Library
@@ -782,9 +789,10 @@
         }
     };
 
-    var ZGCookie = function() {
+    var ZGCookie = function(config) {
         this.name = "_zg";
         this['props'] = {};
+        this['config'] = _.extend({}, config);
 
         this.load();
     };
@@ -800,9 +808,9 @@
         _.cookie.set(
             this.name,
             _.JSONEncode(this['props']),
-            COOKIE_EXPIRE_DAYS,
-            COOKIE_CROSS_SUBDOMAIN,
-            COOKIE_SECURE
+            this['config']['cookie_expire_days'],
+            this['config']['cookie_cross_subdomain'],
+            this['config']['cookie_secure']
         );
     };
 
@@ -829,25 +837,30 @@
         return false;
     };
 
-    var ZGTracker = function() {};
-    ZGTracker.prototype._init = function(key) {
+    var ZGTracker = function() {
+        this['config'] = {};
+        this.idle = 0;
+        this.last_activity = new Date();
+    };
+    ZGTracker.prototype._init = function(key, config) {
         this._key = key;
         this['_jsc'] = function() {};
-        this['cookie'] = new ZGCookie();
+        if (_.isObject(config)) {
+            _.extend(this['config'], DEFAULT_CONFIG, config);
+            DEBUG = DEBUG || this['config']['debug'];
+        }
+        this['cookie'] = new ZGCookie(this['config']);
         this['cookie'].register_once({'uuid': _.UUID(), 'sid': 0, 'updated': 0, 'info': 0}, "");
         this._session();
         this._info();
-    };
-
-    ZGTracker.prototype.debug = function(debug) {
-        DEBUG = debug;
+        this._startPing();
     };
 
     ZGTracker.prototype._session = function() {
         var updated = this['cookie']['props']['updated'];
         var sid = this['cookie']['props']['sid'];
         var now = parseInt(1 * new Date()/1000);
-        if(sid == 0 || now > updated + SESSION_INTERVAL_MINS*60) {
+        if(sid == 0 || now > updated + this['config']['session_interval_mins']*60) {
             if(sid > 0 && updated > 0) {
                 var se = {};
                 se.et = 'se';
@@ -868,13 +881,17 @@
     ZGTracker.prototype._info = function() {
         var lastUpdated = this['cookie']['props']['info'];
         var now = 1 * new Date();
-        if(now > lastUpdated + INFO_UPLOAD_INTERVAL_DAYS*24*60*60*1000) {
+        if(now > lastUpdated + this['config']['info_upload_interval_days']*24*60*60*1000) {
             var evt = {};
             evt.et = 'info';
             evt.pr = _.info.properties();
             this._batchTrack(evt);
             this['cookie'].register({'info': now}, "");
         }
+    };
+
+    ZGTracker.prototype.debug = function(debug) {
+        DEBUG = debug;
     };
 
     ZGTracker.prototype.identify = function(uid, props, callback) {
@@ -923,7 +940,7 @@
                     e.preventDefault();
                     window.setTimeout(function() {
                         window.location.href = el.href;
-                    }, TRACK_LINK_TIMEOUT);
+                    }, this['config']['track_link_timeout']);
                 }
             };
             _.register_event(el, 'click', handler);
@@ -961,6 +978,51 @@
         return this;
     };
 
+    ZGTracker.prototype._moved = function(e) {
+        this.last_activity = new Date();
+        this.idle = 0;
+    };
+
+    ZGTracker.prototype._startPing = function() {
+        var self = this;
+        _.register_event(window, 'mousemove', function() {
+            self._moved.apply(self, arguments);
+        });
+
+        if (typeof this.pingInterval === 'undefined') {
+            this.pingInterval = window.setInterval(function() {
+                self._ping();
+            }, this['config']['ping_interval']);
+        }
+    };
+
+    ZGTracker.prototype._stopPing = function() {
+        if (typeof this.pingInterval !== 'undefined') {
+            window.clearInterval(this.pingInterval);
+            delete this.pingInterval;
+        }
+    };
+
+    ZGTracker.prototype._ping = function() {
+        if (this['config']['ping'] && this.idle < this['config']['idle_timeout']) {
+            console.log("ZHUGE PING");
+            var url = this['config']['ping_host'] 
+                    + '?_=' + new Date().getTime().toString()
+                    + '&ak=' + this._key
+                    + '&did=' + this['cookie']['props']['uuid'];
+            this._sendRequest(url);
+        } else {
+            this._stopPing();
+        }
+
+        var now = new Date();
+        if (now - this.last_activity > this['config']['idle_threshold']) {
+            this.idle = now - this.last_activity;
+        }
+
+        return this;
+    };
+
     ZGTracker.prototype._batchTrack = function(evt, callback) {
         var batch = {};
         batch.type = 'statis';
@@ -972,7 +1034,7 @@
         data.push(evt);
         batch.data = data;
 
-        this._sendRequest(batch, this._prepareCallback(callback, batch));
+        this._sendTrackRequest(batch, this._prepareCallback(callback, batch));
     };
 
     ZGTracker.prototype._prepareCallback = function(callback, data) {
@@ -998,7 +1060,7 @@
         }
     };
 
-    ZGTracker.prototype._sendRequest = function(evt, callback) {
+    ZGTracker.prototype._sendTrackRequest = function(evt, callback) {
         var truncated_data = _.truncate(evt, 255),
             json_data = _.JSONEncode(truncated_data);
 
@@ -1009,7 +1071,12 @@
             'event': json_data,
             '_': new Date().getTime().toString()
         };
-        var url = API_HOST + '&' + _.HTTPBuildQuery(data);
+        var url = this['config']['api_host'] + '&' + _.HTTPBuildQuery(data);
+
+        this._sendRequest(url, callback);
+    };
+
+    ZGTracker.prototype._sendRequest = function(url, callback) {
         if (USE_XHR) {
             var req = new XMLHttpRequest();
             req.open("GET", url, true);
