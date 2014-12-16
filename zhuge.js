@@ -22,7 +22,7 @@
 
     var _ = {},
         SNIPPET_VERSION = '1.1',
-        HTTP_PROTOCOL = ("https:" == document.location.protocol) ? "http://" : "http://",
+        HTTP_PROTOCOL = ("https:" == document.location.protocol) ? "https://" : "http://",
         USE_XHR = window.XMLHttpRequest && 'withCredentials' in new XMLHttpRequest(),
         DEBUG = false,
         DEFAULT_CONFIG = {
