@@ -21,13 +21,13 @@
         userAgent = navigator.userAgent;
 
     var _ = {},
-        SNIPPET_VERSION = '1.1',
+        SDK_VERSION = '1.1',
         HTTP_PROTOCOL = ("https:" == document.location.protocol) ? "https://" : "http://",
         USE_XHR = window.XMLHttpRequest && 'withCredentials' in new XMLHttpRequest(),
         DEBUG = false,
         DEFAULT_CONFIG = {
             api_host: HTTP_PROTOCOL + 'apipool.37degree.com/web_event/?method=web_event_srv.upload',
-            ping_host: HTTP_PROTOCOL + 'api.zhuge.io/ping',
+            ping_host: HTTP_PROTOCOL + 'apipool.37degree.com/web_event/?method=ping',
             debug: false,
             ping : false,
             ping_interval: 12000,
@@ -38,7 +38,9 @@
             cookie_cross_subdomain: true,
             cookie_secure: false,
             info_upload_interval_days: 7,
-            session_interval_mins: 30
+            session_interval_mins: 30,
+            app_channel: 'web',
+            app_version: '1.0'
         };
 
     // UNDERSCORE
@@ -839,6 +841,7 @@
 
     var ZGTracker = function() {
         this['config'] = {};
+        _.extend(this['config'], DEFAULT_CONFIG);
         this.idle = 0;
         this.last_activity = new Date();
     };
@@ -846,7 +849,7 @@
         this._key = key;
         this['_jsc'] = function() {};
         if (_.isObject(config)) {
-            _.extend(this['config'], DEFAULT_CONFIG, config);
+            _.extend(this['config'], config);
             DEBUG = DEBUG || this['config']['debug'];
         }
         this['cookie'] = new ZGCookie(this['config']);
@@ -872,6 +875,7 @@
             var ss = {};
             ss.et = 'ss';
             ss.sid = now;
+            ss.pr = _.extend(_.info.properties(),{'cn':this['config']['app_channel'],'vn':this['config']['app_version']});
             this._batchTrack(ss);
             this['cookie'].register({'sid': now}, "");
         }
@@ -884,7 +888,7 @@
         if(now > lastUpdated + this['config']['info_upload_interval_days']*24*60*60*1000) {
             var evt = {};
             evt.et = 'info';
-            evt.pr = _.info.properties();
+            evt.pr = _.extend(_.info.properties(),{'cn':this['config']['app_channel'],'vn':this['config']['app_version']});
             this._batchTrack(evt);
             this['cookie'].register({'info': now}, "");
         }
@@ -1027,7 +1031,7 @@
         var batch = {};
         batch.type = 'statis';
         batch.sdk = 'web';
-        batch.sdkv = SNIPPET_VERSION;
+        batch.sdkv = SDK_VERSION;
         batch.ak = this._key;
         batch.did = this['cookie']['props']['uuid'];
         var data = [];
