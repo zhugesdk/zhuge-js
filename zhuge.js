@@ -27,7 +27,6 @@
         DEBUG = false,
         DEFAULT_CONFIG = {
             api_host: HTTP_PROTOCOL + 'apipool.37degree.com/web_event/?method=web_event_srv.upload',
-            ping_host: HTTP_PROTOCOL + 'apipool.37degree.com/web_event/?method=ping',
             debug: false,
             ping : false,
             ping_interval: 12000,
@@ -1009,12 +1008,13 @@
 
     ZGTracker.prototype._ping = function() {
         if (this['config']['ping'] && this.idle < this['config']['idle_timeout']) {
-            console.log("ZHUGE PING");
-            var url = this['config']['ping_host'] 
-                    + '?_=' + new Date().getTime().toString()
-                    + '&ak=' + this._key
-                    + '&did=' + this['cookie']['props']['uuid'];
-            this._sendRequest(url);
+            var evt = {};
+            evt.type = 'ping';
+            evt.sdk = 'web';
+            evt.sdkv = SDK_VERSION;
+            evt.ak = this._key;
+            evt.did = this['cookie']['props']['uuid'];
+            this._sendTrackRequest(evt);
         } else {
             this._stopPing();
         }
