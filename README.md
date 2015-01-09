@@ -19,4 +19,14 @@ zhuge.track('购买手机', {
 });
 ```
 
+3、 把用户行为关联到您的用户上:
+
+```js
+zhuge.identify('12323', {
+  'name': '雷军',
+  'email': 'leiju@zhuge.io',
+  'company': '诸葛'
+});
+```
+
 **了解更多 [完整文档 »](http://docs.zhuge.io/sdks/javascript)**
