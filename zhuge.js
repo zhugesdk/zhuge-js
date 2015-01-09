@@ -844,6 +844,7 @@
         this.idle = 0;
         this.last_activity = new Date();
     };
+    
     ZGTracker.prototype._init = function(key, config) {
         this._key = key;
         this['_jsc'] = function() {};
@@ -898,6 +899,7 @@
     };
 
     ZGTracker.prototype.identify = function(uid, props, callback) {
+        this['cookie'].register({'cuid': uid}, "");
         this._session();
         var evt = {};
         evt.et = 'idf';
@@ -1014,6 +1016,7 @@
             evt.sdkv = SDK_VERSION;
             evt.ak = this._key;
             evt.did = this['cookie']['props']['uuid'];
+            evt.cuid = this['cookie']['props']['cuid'];
             this._sendTrackRequest(evt);
         } else {
             this._stopPing();
@@ -1034,6 +1037,7 @@
         batch.sdkv = SDK_VERSION;
         batch.ak = this._key;
         batch.did = this['cookie']['props']['uuid'];
+        batch.cuid = this['cookie']['props']['cuid'];
         var data = [];
         data.push(evt);
         batch.data = data;
