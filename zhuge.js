@@ -1,7 +1,7 @@
 /*
- * Zhuge JS Library v1.1
+ * Zhuge JS Library v1.1.1
  *
- * Copyright 2014, 37degree, Inc. All Rights Reserved
+ * Copyright 2015, 37degree, Inc. All Rights Reserved
  * http://37degree.com/
  *
  * Includes portions of Underscore.js
@@ -21,7 +21,7 @@
         userAgent = navigator.userAgent;
 
     var _ = {},
-        SDK_VERSION = '1.1',
+        SDK_VERSION = '1.1.1',
         HTTP_PROTOCOL = ("https:" == document.location.protocol) ? "https://" : "http://",
         USE_XHR = window.XMLHttpRequest && 'withCredentials' in new XMLHttpRequest(),
         DEBUG = false,
@@ -853,7 +853,7 @@
             DEBUG = DEBUG || this['config']['debug'];
         }
         this['cookie'] = new ZGCookie(this['config']);
-        this['cookie'].register_once({'uuid': _.UUID(), 'sid': 0, 'updated': 0, 'info': 0}, "");
+        this['cookie'].register_once({'uuid': _.UUID(), 'sid': 0, 'started': 0, 'updated': 0, 'info': 0}, "");
         this._session();
         this._info();
         this._startPing();
@@ -861,23 +861,26 @@
 
     ZGTracker.prototype._session = function() {
         var updated = this['cookie']['props']['updated'];
+        var started = this['cookie']['props']['started'];
         var sid = this['cookie']['props']['sid'];
-        var now = parseInt(1 * new Date()/1000);
-        if(sid == 0 || now > updated + this['config']['session_interval_mins']*60) {
+        var now = 1 * new Date();
+        if(sid == 0 || now > updated + this['config']['session_interval_mins']*60*1000) {
             if(sid > 0 && updated > 0) {
                 var se = {};
                 se.et = 'se';
                 se.sid = sid;
-                se.dr = updated - sid;
+                se.dr = (updated - started)/1000;
                 this._batchTrack(se);
             }
 
+            sid = parseInt(now/1000);
+
             var ss = {};
             ss.et = 'ss';
-            ss.sid = now;
+            ss.sid = sid;
             ss.pr = _.extend(_.info.properties(),{'cn':this['config']['app_channel'],'vn':this['config']['app_version']});
             this._batchTrack(ss);
-            this['cookie'].register({'sid': now}, "");
+            this['cookie'].register({'sid': sid, 'started': now}, "");
         }
         this['cookie'].register({'updated': now}, "");
     };
