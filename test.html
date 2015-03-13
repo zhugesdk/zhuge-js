@@ -31,7 +31,7 @@
         script.type = 'text/javascript';
         script.id = 'zhuge-js';
         script.async = true;
-        script.src = 'zhuge.min.js';
+        script.src = 'zhuge.js';
 
         var first = document.getElementsByTagName('script')[0];
         first.parentNode.insertBefore(script, first);
@@ -40,11 +40,12 @@
     };
 
     var config = {
-        debug: true,
-        session_interval_mins:0.2
+        session_interval_mins:30,
+        app_version:1.2,
+        app_channel:'referrer'
     };
-    window.zhuge.load('c0db95c7d66949ee97a70a6c360756a2', config);
-
+    window.zhuge.load('a675ed717808468197d82fcbb33028af', config);
+    zhuge.track('事件1');
 
     </script>
 

@@ -1,5 +1,5 @@
 /*
- * Zhuge JS Library v1.1.1
+ * Zhuge JS Library v1.2
  *
  * Copyright 2015, 37degree, Inc. All Rights Reserved
  * http://37degree.com/
@@ -21,7 +21,7 @@
         userAgent = navigator.userAgent;
 
     var _ = {},
-        SDK_VERSION = '1.1.1',
+        SDK_VERSION = '1.2',
         HTTP_PROTOCOL = ("https:" == document.location.protocol) ? "https://" : "http://",
         USE_XHR = window.XMLHttpRequest && 'withCredentials' in new XMLHttpRequest(),
         DEBUG = false,
@@ -510,6 +510,18 @@
         return tmp_arr.join(arg_separator);
     };
 
+    _.getQueryParam = function(url, param) {
+        param = param.replace(/[\[]/, "\\\[").replace(/[\]]/, "\\\]");
+        var regexS = "[\\?&#]" + param + "=([^&#]*)",
+            regex = new RegExp( regexS ),
+            results = regex.exec(url);
+        if (results === null || (results && typeof(results[1]) !== 'string' && results[1].length)) {
+            return '';
+        } else {
+            return decodeURIComponent(results[1]).replace(/\+/g, ' ');
+        }
+    };
+
     _.register_event = (function() {
         var register_event = function(element, type, handler, oldSchool) {
             if (!element) {
@@ -674,6 +686,58 @@
     })();
 
     _.info = {
+        campaignParams: function() {
+            var campaign_keywords = 'utm_source utm_medium utm_campaign utm_content utm_term'.split(' ')
+                , kw = ''
+                , params = {};
+            _.each(campaign_keywords, function(kwkey) {
+                kw = _.getQueryParam(document.URL, kwkey);
+                if (kw.length) {
+                    params[kwkey] = kw;
+                }
+            });
+
+            return params;
+        },
+
+        searchEngine: function(referrer) {
+            if (referrer.search('https?://(.*)google.([^/?]*)') === 0) {
+                return 'google';
+            } else if (referrer.search('https?://(.*)baidu.com') === 0) {
+                return 'baidu';
+            } else if (referrer.search('https?://(.*)sogou.com') === 0) {
+                return 'sogou';
+            } else if (referrer.search('https?://(.*)haosou.com') === 0) {
+                return 'haosou';
+            } else {
+                return null;
+            }
+        },
+
+        searchKeyword: function(referrer) {
+            var search = _.info.searchEngine(referrer);
+
+            if (search == 'google') {
+                return _.getQueryParam(referrer, 'q');
+            } else if (search == 'baidu') {
+                return _.getQueryParam(referrer, 'wd');
+            } else if (search == 'sogou') {
+                return _.getQueryParam(referrer, 'query');
+            } else if (search == 'haosou') {
+                return _.getQueryParam(referrer, 'q');
+            } else {
+                return null;                
+            }
+        },
+
+        referringDomain: function(referrer) {
+            var split = referrer.split("/");
+            if (split.length >= 3) {
+                return split[2];
+            }
+            return "";
+        },
+
         browser: function(user_agent, vendor, opera) {
             var vendor = vendor || ''; // vendor is undefined for at least IE9
             if (opera) {
@@ -754,11 +818,16 @@
         },
 
         properties: function() {
+            var referrer = document.referrer;
             return _.strip_empty_properties({
                 'os': _.info.os(),
                 'br': _.info.browser(userAgent, navigator.vendor, window.opera),
                 'dv': _.info.device(userAgent),
-                'rs': _.info.resolution()
+                'rs': _.info.resolution(),
+                'search': _.info.searchEngine(referrer),
+                'keyword': _.info.searchKeyword(referrer),
+                'referrer': referrer,
+                'referrer_domain': _.info.referringDomain(referrer)
             });
         }
     };
@@ -878,7 +947,9 @@
             var ss = {};
             ss.et = 'ss';
             ss.sid = sid;
-            ss.pr = _.extend(_.info.properties(),{'cn':this['config']['app_channel'],'vn':this['config']['app_version']});
+            ss.cn = this['config']['app_channel'];
+            ss.vn = this['config']['app_version'];
+            ss.pr = _.extend(_.info.properties(), _.info.campaignParams());
             this._batchTrack(ss);
             this['cookie'].register({'sid': sid}, "");
         }
@@ -1038,6 +1109,8 @@
         batch.type = 'statis';
         batch.sdk = 'web';
         batch.sdkv = SDK_VERSION;
+        batch.cn = this['config']['app_channel'];
+        batch.vn = this['config']['app_version'];
         batch.ak = this._key;
         batch.did = this['cookie']['props']['uuid'];
         batch.cuid = this['cookie']['props']['cuid'];
