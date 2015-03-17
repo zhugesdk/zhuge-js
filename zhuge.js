@@ -1168,7 +1168,7 @@
             // 支持自定义cookie http://www.html5rocks.com/en/tutorials/cors/
             req.withCredentials = true;
             req.onreadystatechange = function(e) {
-                if (req.readyState === 4) { // XMLHttpRequest.DONE == 4, except in safari 4
+                if (req.readyState === 4) { 
                     if (req.status !== 200) {
                         var error = 'Bad HTTP status: ' + req.status + ' ' + req.statusText;
                         console.error(error);
