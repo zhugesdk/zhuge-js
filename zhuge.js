@@ -826,6 +826,7 @@
                 'rs': _.info.resolution(),
                 'search': _.info.searchEngine(referrer),
                 'keyword': _.info.searchKeyword(referrer),
+                'url': document.URL,
                 'referrer': referrer,
                 'referrer_domain': _.info.referringDomain(referrer)
             });
